@@ -38,23 +38,43 @@ import os
 
 LETTER = "P"
 
+# The one-letter alphabet the entry must belong to.
+ALPHABET = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+
+def validate_letter(value) -> str:
+    """Guard: value must be exactly one uppercase letter A-Z.
+
+    Accepts either the letter string or the raw bytes read back from
+    the entry file, so the same check covers the pre-write guard and
+    the post-write read-back verification. Returns the letter as a
+    str, or raises AssertionError with a clear message.
+    """
+    if isinstance(value, bytes):
+        assert len(value) == 1, (
+            f"entry.txt must be exactly 1 byte, got {len(value)}"
+        )
+        value = value.decode("ascii")
+    assert len(value) == 1, f"letter must be 1 character, got {len(value)}"
+    assert value in ALPHABET, f"letter must be A-Z, got {value!r}"
+    return value
+
 
 def main() -> None:
-    assert len(LETTER) == 1 and "A" <= LETTER <= "Z", (
-        "entry must be exactly one uppercase letter A-Z"
-    )
+    # Pre-write guard: refuse to write anything that is not a
+    # single uppercase letter A-Z.
+    validate_letter(LETTER)
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "entry.txt")
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(LETTER)
     # Read-back validation: the gate is exactly 1 character, so the
-    # file must be exactly one byte holding one letter A-Z.
+    # file must be exactly one byte holding one letter A-Z, and it
+    # must be the same letter we intended to write.
     with open(path, "rb") as f:
         data = f.read()
-    assert len(data) == 1, f"entry.txt must be 1 byte, got {len(data)}"
-    assert 65 <= data[0] <= 90, "entry.txt must hold one letter A-Z"
-    assert data.decode("ascii") == LETTER
+    assert validate_letter(data) == LETTER
     print(LETTER)
 
 
